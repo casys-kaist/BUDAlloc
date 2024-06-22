@@ -1,0 +1,15 @@
+diff --git a/config/gcc.bldconf b/config/gcc.bldconf
+index 9524d2c9..662de270 100644
+--- a/config/gcc.bldconf
++++ b/config/gcc.bldconf
+@@ -39,8 +39,8 @@ export RANLIB="${TARGET_CROSS}ranlib"
+ export STRIP="${TARGET_CROSS}strip"
+ 
+ # Arguments to use
+-export CFLAGS=" $CFLAGS"
+-export CXXFLAGS="$CXXFLAGS -fpermissive -fno-exceptions -std=c++17"
++export CFLAGS=" $CFLAGS -O1"
++export CXXFLAGS="$CXXFLAGS -fpermissive -fno-exceptions -std=c++17 -O1"
+ export CPPFLAGS=""
+ export CXXCPPFLAGS=""
+ export LIBS=""

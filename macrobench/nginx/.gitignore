@@ -1,0 +1,9 @@
+*.txt
+*.log
+nginx*
+!nginx.conf
+openssl*
+pcre*
+zlib*
+wrk
+*.csv

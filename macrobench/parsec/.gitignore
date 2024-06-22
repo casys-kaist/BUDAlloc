@@ -1,0 +1,4 @@
+parsec-benchmark/
+*.log
+benchmark_results.csv
+result

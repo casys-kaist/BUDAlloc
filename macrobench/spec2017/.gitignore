@@ -1,0 +1,6 @@
+SPECCPU_2017/
+*.cfg.*
+tmp
+result
+benchspec
+*.csv

@@ -1,0 +1,601 @@
+From 099394003477b83c2eb4be07fd0173d6e696cf4e Mon Sep 17 00:00:00 2001
+From: Andreas Gruenbacher <agruen@gnu.org>
+Date: Thu, 14 May 2020 12:36:11 +0200
+Subject: [PATCH] gnulib: update to latest
+
+* bootstrap: Update.
+* bootstrap.conf (gnulib_modules): Replace getdate with parse-datetime, malloc
+with malloc-gnu, and realloc with realloc-gnu.
+* src/patch.c (main): Function find_backup_file_name has gained a new dir_fd
+argument.
+* src/util.c (create_backup): Likewise.
+(fetchname): Function get_date has been renamed to parse_datetime.
+---
+ bootstrap      | 287 ++++++++++++++++++++++++++++---------------------
+ bootstrap.conf |   6 +-
+ gnulib         |   2 +-
+ m4/.gitignore  |  28 ++---
+ src/patch.c    |   2 +-
+ src/util.c     |   8 +-
+ 6 files changed, 191 insertions(+), 142 deletions(-)
+
+diff --git a/bootstrap b/bootstrap
+index 25920e9..8f76d69 100755
+--- a/bootstrap
++++ b/bootstrap
+@@ -1,10 +1,10 @@
+ #! /bin/sh
+ # Print a version string.
+-scriptversion=2017-09-19.08; # UTC
++scriptversion=2020-04-13.15; # UTC
+ 
+ # Bootstrap this package from checked-out sources.
+ 
+-# Copyright (C) 2003-2018 Free Software Foundation, Inc.
++# Copyright (C) 2003-2020 Free Software Foundation, Inc.
+ 
+ # This program is free software: you can redistribute it and/or modify
+ # it under the terms of the GNU General Public License as published by
+@@ -47,6 +47,8 @@ PERL="${PERL-perl}"
+ 
+ me=$0
+ 
++default_gnulib_url=git://git.sv.gnu.org/gnulib
++
+ usage() {
+   cat <<EOF
+ Usage: $me [OPTION]...
+@@ -76,6 +78,37 @@ contents are read as shell variables to configure the bootstrap.
+ For build prerequisites, environment variables like \$AUTOCONF and \$AMTAR
+ are honored.
+ 
++Gnulib sources can be fetched in various ways:
++
++ * If this package is in a git repository with a 'gnulib' submodule
++   configured, then that submodule is initialized and updated and sources
++   are fetched from there.  If \$GNULIB_SRCDIR is set (directly or via
++   --gnulib-srcdir) and is a git repository, then it is used as a reference.
++
++ * Otherwise, if \$GNULIB_SRCDIR is set (directly or via --gnulib-srcdir),
++   then sources are fetched from that local directory.  If it is a git
++   repository and \$GNULIB_REVISION is set, then that revision is checked
++   out.
++
++ * Otherwise, if this package is in a git repository with a 'gnulib'
++   submodule configured, then that submodule is initialized and updated and
++   sources are fetched from there.
++
++ * Otherwise, if the 'gnulib' directory does not exist, Gnulib sources are
++   cloned into that directory using git from \$GNULIB_URL, defaulting to
++   $default_gnulib_url.
++   If \$GNULIB_REVISION is set, then that revision is checked out.
++
++ * Otherwise, the existing Gnulib sources in the 'gnulib' directory are
++   used.  If it is a git repository and \$GNULIB_REVISION is set, then that
++   revision is checked out.
++
++If you maintain a package and want to pin a particular revision of the
++Gnulib sources that has been tested with your package, then there are two
++possible approaches: either configure a 'gnulib' submodule with the
++appropriate revision, or set \$GNULIB_REVISION (and if necessary
++\$GNULIB_URL) in $me.conf.
++
+ Running without arguments will suffice in most cases.
+ EOF
+ }
+@@ -129,18 +162,11 @@ bootstrap_post_import_hook() { :; }
+ # Override it via your own definition in bootstrap.conf.
+ bootstrap_epilogue() { :; }
+ 
+-# The command to download all .po files for a specified domain into
+-# a specified directory.  Fill in the first %s is the domain name, and
+-# the second with the destination directory.  Use rsync's -L and -r
+-# options because the latest/%s directory and the .po files within are
+-# all symlinks.
++# The command to download all .po files for a specified domain into a
++# specified directory.  Fill in the first %s with the destination
++# directory and the second with the domain name.
+ po_download_command_format=\
+-"rsync --delete --exclude '*.s1' -Lrtvz \
+- 'translationproject.org::tp/latest/%s/' '%s'"
+-
+-# Fallback for downloading .po files (if rsync fails).
+-po_download_command_format2=\
+-"wget --mirror -nd -q -np -A.po -P '%s' \
++"wget --mirror --level=1 -nd -nv -A.po -P '%s' \
+  https://translationproject.org/latest/%s/"
+ 
+ # Prefer a non-empty tarname (4th argument of AC_INIT if given), else
+@@ -170,7 +196,15 @@ source_base=lib
+ m4_base=m4
+ doc_base=doc
+ tests_base=tests
+-gnulib_extra_files=''
++gnulib_extra_files="
++        build-aux/install-sh
++        build-aux/mdate-sh
++        build-aux/texinfo.tex
++        build-aux/depcomp
++        build-aux/config.guess
++        build-aux/config.sub
++        doc/INSTALL
++"
+ 
+ # Additional gnulib-tool options to use.  Use "\newline" to break lines.
+ gnulib_tool_option_extras=
+@@ -264,24 +298,18 @@ case "$0" in
+   *) test -r "$0.conf" && . ./"$0.conf" ;;
+ esac
+ 
+-# Extra files from gnulib, which override files from other sources.
+-test -z "${gnulib_extra_files}" && \
+-  gnulib_extra_files="
+-        build-aux/install-sh
+-        build-aux/mdate-sh
+-        build-aux/texinfo.tex
+-        build-aux/depcomp
+-        build-aux/config.guess
+-        build-aux/config.sub
+-        doc/INSTALL
+-"
+-
+ if test "$vc_ignore" = auto; then
+   vc_ignore=
+   test -d .git && vc_ignore=.gitignore
+   test -d CVS && vc_ignore="$vc_ignore .cvsignore"
+ fi
+ 
++if test x"$gnulib_modules$gnulib_files$gnulib_extra_files" = x; then
++  use_gnulib=false
++else
++  use_gnulib=true
++fi
++
+ # Translate configuration into internal form.
+ 
+ # Parse options.
+@@ -612,95 +640,101 @@ git_modules_config () {
+   test -f .gitmodules && git config --file .gitmodules "$@"
+ }
+ 
+-if $use_git; then
+-  gnulib_path=$(git_modules_config submodule.gnulib.path)
+-  test -z "$gnulib_path" && gnulib_path=gnulib
+-fi
++if $use_gnulib; then
++  if $use_git; then
++    gnulib_path=$(git_modules_config submodule.gnulib.path)
++    test -z "$gnulib_path" && gnulib_path=gnulib
++  fi
+ 
+-# Get gnulib files.  Populate $GNULIB_SRCDIR, possibly updating a
+-# submodule, for use in the rest of the script.
++  # Get gnulib files.  Populate $GNULIB_SRCDIR, possibly updating a
++  # submodule, for use in the rest of the script.
+ 
+-case ${GNULIB_SRCDIR--} in
+--)
+-  # Note that $use_git is necessarily true in this case.
+-  if git_modules_config submodule.gnulib.url >/dev/null; then
+-    echo "$0: getting gnulib files..."
+-    git submodule init -- "$gnulib_path" || exit $?
+-    git submodule update -- "$gnulib_path" || exit $?
++  case ${GNULIB_SRCDIR--} in
++  -)
++    # Note that $use_git is necessarily true in this case.
++    if git_modules_config submodule.gnulib.url >/dev/null; then
++      echo "$0: getting gnulib files..."
++      git submodule init -- "$gnulib_path" || exit $?
++      git submodule update -- "$gnulib_path" || exit $?
+ 
+-  elif [ ! -d "$gnulib_path" ]; then
+-    echo "$0: getting gnulib files..."
++    elif [ ! -d "$gnulib_path" ]; then
++      echo "$0: getting gnulib files..."
+ 
+-    trap cleanup_gnulib 1 2 13 15
++      trap cleanup_gnulib 1 2 13 15
+ 
+-    shallow=
+-    git clone -h 2>&1 | grep -- --depth > /dev/null && shallow='--depth 2'
+-    git clone $shallow git://git.sv.gnu.org/gnulib "$gnulib_path" ||
+-      cleanup_gnulib
++      shallow=
++      if test -z "$GNULIB_REVISION"; then
++        git clone -h 2>&1 | grep -- --depth > /dev/null && shallow='--depth 2'
++      fi
++      git clone $shallow ${GNULIB_URL:-$default_gnulib_url} "$gnulib_path" \
++        || cleanup_gnulib
+ 
+-    trap - 1 2 13 15
+-  fi
+-  GNULIB_SRCDIR=$gnulib_path
+-  ;;
+-*)
+-  # Use GNULIB_SRCDIR directly or as a reference.
+-  if $use_git && test -d "$GNULIB_SRCDIR"/.git && \
+-        git_modules_config submodule.gnulib.url >/dev/null; then
+-    echo "$0: getting gnulib files..."
+-    if git submodule -h|grep -- --reference > /dev/null; then
+-      # Prefer the one-liner available in git 1.6.4 or newer.
+-      git submodule update --init --reference "$GNULIB_SRCDIR" \
+-        "$gnulib_path" || exit $?
+-    else
+-      # This fallback allows at least git 1.5.5.
+-      if test -f "$gnulib_path"/gnulib-tool; then
+-        # Since file already exists, assume submodule init already complete.
+-        git submodule update -- "$gnulib_path" || exit $?
++      trap - 1 2 13 15
++    fi
++    GNULIB_SRCDIR=$gnulib_path
++    ;;
++  *)
++    # Use GNULIB_SRCDIR directly or as a reference.
++    if $use_git && test -d "$GNULIB_SRCDIR"/.git && \
++          git_modules_config submodule.gnulib.url >/dev/null; then
++      echo "$0: getting gnulib files..."
++      if git submodule -h|grep -- --reference > /dev/null; then
++        # Prefer the one-liner available in git 1.6.4 or newer.
++        git submodule update --init --reference "$GNULIB_SRCDIR" \
++          "$gnulib_path" || exit $?
+       else
+-        # Older git can't clone into an empty directory.
+-        rmdir "$gnulib_path" 2>/dev/null
+-        git clone --reference "$GNULIB_SRCDIR" \
+-          "$(git_modules_config submodule.gnulib.url)" "$gnulib_path" \
+-          && git submodule init -- "$gnulib_path" \
+-          && git submodule update -- "$gnulib_path" \
+-          || exit $?
++        # This fallback allows at least git 1.5.5.
++        if test -f "$gnulib_path"/gnulib-tool; then
++          # Since file already exists, assume submodule init already complete.
++          git submodule update -- "$gnulib_path" || exit $?
++        else
++          # Older git can't clone into an empty directory.
++          rmdir "$gnulib_path" 2>/dev/null
++          git clone --reference "$GNULIB_SRCDIR" \
++            "$(git_modules_config submodule.gnulib.url)" "$gnulib_path" \
++            && git submodule init -- "$gnulib_path" \
++            && git submodule update -- "$gnulib_path" \
++            || exit $?
++        fi
+       fi
++      GNULIB_SRCDIR=$gnulib_path
+     fi
+-    GNULIB_SRCDIR=$gnulib_path
++    ;;
++  esac
++
++  if test -d "$GNULIB_SRCDIR"/.git && test -n "$GNULIB_REVISION" \
++     && ! git_modules_config submodule.gnulib.url >/dev/null; then
++    (cd "$GNULIB_SRCDIR" && git checkout "$GNULIB_REVISION") || cleanup_gnulib
+   fi
+-  ;;
+-esac
+ 
+-# $GNULIB_SRCDIR now points to the version of gnulib to use, and
+-# we no longer need to use git or $gnulib_path below here.
++  # $GNULIB_SRCDIR now points to the version of gnulib to use, and
++  # we no longer need to use git or $gnulib_path below here.
++
++  if $bootstrap_sync; then
++    cmp -s "$0" "$GNULIB_SRCDIR/build-aux/bootstrap" || {
++      echo "$0: updating bootstrap and restarting..."
++      case $(sh -c 'echo "$1"' -- a) in
++        a) ignored=--;;
++        *) ignored=ignored;;
++      esac
++      exec sh -c \
++        'cp "$1" "$2" && shift && exec "${CONFIG_SHELL-/bin/sh}" "$@"' \
++        $ignored "$GNULIB_SRCDIR/build-aux/bootstrap" \
++        "$0" "$@" --no-bootstrap-sync
++    }
++  fi
+ 
+-if $bootstrap_sync; then
+-  cmp -s "$0" "$GNULIB_SRCDIR/build-aux/bootstrap" || {
+-    echo "$0: updating bootstrap and restarting..."
+-    case $(sh -c 'echo "$1"' -- a) in
+-      a) ignored=--;;
+-      *) ignored=ignored;;
+-    esac
+-    exec sh -c \
+-      'cp "$1" "$2" && shift && exec "${CONFIG_SHELL-/bin/sh}" "$@"' \
+-      $ignored "$GNULIB_SRCDIR/build-aux/bootstrap" \
+-      "$0" "$@" --no-bootstrap-sync
+-  }
++  gnulib_tool=$GNULIB_SRCDIR/gnulib-tool
++  <$gnulib_tool || exit $?
+ fi
+ 
+-gnulib_tool=$GNULIB_SRCDIR/gnulib-tool
+-<$gnulib_tool || exit $?
+-
+ # Get translations.
+ 
+ download_po_files() {
+   subdir=$1
+   domain=$2
+   echo "$me: getting translations into $subdir for $domain..."
+-  cmd=$(printf "$po_download_command_format" "$domain" "$subdir")
+-  eval "$cmd" && return
+-  # Fallback to HTTPS.
+-  cmd=$(printf "$po_download_command_format2" "$subdir" "$domain")
++  cmd=$(printf "$po_download_command_format" "$subdir" "$domain")
+   eval "$cmd"
+ }
+ 
+@@ -898,36 +932,47 @@ fi
+ 
+ # Import from gnulib.
+ 
+-gnulib_tool_options="\
+- --import\
+- --no-changelog\
+- --aux-dir $build_aux\
+- --doc-base $doc_base\
+- --lib $gnulib_name\
+- --m4-base $m4_base/\
+- --source-base $source_base/\
+- --tests-base $tests_base\
+- --local-dir $local_gl_dir\
+- $gnulib_tool_option_extras\
+-"
+-if test $use_libtool = 1; then
+-  case "$gnulib_tool_options " in
+-    *' --libtool '*) ;;
+-    *) gnulib_tool_options="$gnulib_tool_options --libtool" ;;
+-  esac
+-fi
+-echo "$0: $gnulib_tool $gnulib_tool_options --import ..."
+-$gnulib_tool $gnulib_tool_options --import $gnulib_modules \
+-  || die "gnulib-tool failed"
++if $use_gnulib; then
++  gnulib_tool_options="\
++   --no-changelog\
++   --aux-dir=$build_aux\
++   --doc-base=$doc_base\
++   --lib=$gnulib_name\
++   --m4-base=$m4_base/\
++   --source-base=$source_base/\
++   --tests-base=$tests_base\
++   --local-dir=$local_gl_dir\
++   $gnulib_tool_option_extras\
++  "
++  if test $use_libtool = 1; then
++    case "$gnulib_tool_options " in
++      *' --libtool '*) ;;
++      *) gnulib_tool_options="$gnulib_tool_options --libtool" ;;
++    esac
++  fi
++  echo "$0: $gnulib_tool $gnulib_tool_options --import ..."
++  $gnulib_tool $gnulib_tool_options --import $gnulib_modules \
++    || die "gnulib-tool failed"
+ 
+-for file in $gnulib_files; do
+-  symlink_to_dir "$GNULIB_SRCDIR" $file \
+-    || die "failed to symlink $file"
+-done
++  for file in $gnulib_files; do
++    symlink_to_dir "$GNULIB_SRCDIR" $file \
++      || die "failed to symlink $file"
++  done
++fi
+ 
+ bootstrap_post_import_hook \
+   || die "bootstrap_post_import_hook failed"
+ 
++# Don't proceed if there are uninitialized submodules.  In particular,
++# the next step will remove dangling links, which might be links into
++# uninitialized submodules.
++#
++# Uninitialized submodules are listed with an initial dash.
++if $use_git && git submodule | grep '^-' >/dev/null; then
++  die "some git submodules are not initialized. "     \
++      "Run 'git submodule update --init' and bootstrap again."
++fi
++
+ # Remove any dangling symlink matching "*.m4" or "*.[ch]" in some
+ # gnulib-populated directories.  Such .m4 files would cause aclocal to fail.
+ # The following requires GNU find 4.2.3 or newer.  Considering the usual
+@@ -1020,7 +1065,7 @@ bootstrap_epilogue
+ echo "$0: done.  Now you can run './configure'."
+ 
+ # Local variables:
+-# eval: (add-hook 'write-file-hooks 'time-stamp)
++# eval: (add-hook 'before-save-hook 'time-stamp)
+ # time-stamp-start: "scriptversion="
+ # time-stamp-format: "%:y-%02m-%02d.%02H"
+ # time-stamp-time-zone: "UTC0"
+diff --git a/bootstrap.conf b/bootstrap.conf
+index 68cddd7..bb89b0f 100644
+--- a/bootstrap.conf
++++ b/bootstrap.conf
+@@ -35,7 +35,6 @@ fchmodat
+ fcntl-h
+ fstatat
+ full-write
+-getdate
+ getopt-gnu
+ gettime
+ gitlog-to-changelog
+@@ -47,17 +46,18 @@ intprops
+ largefile
+ linked-list
+ maintainer-makefile
+-malloc
++malloc-gnu
+ manywarnings
+ memchr
+ minmax
+ mkdirat
+ nstrftime
+ openat
++parse-datetime
+ progname
+ quotearg
+ readlinkat
+-realloc
++realloc-gnu
+ renameat
+ setenv
+ signal
+diff --git a/m4/.gitignore b/m4/.gitignore
+index a84117a..6de9e7e 100644
+--- a/m4/.gitignore
++++ b/m4/.gitignore
+@@ -2,11 +2,9 @@
+ /alloca.m4
+ /argmatch.m4
+ /backupfile.m4
+-/bison.m4
+ /clock_time.m4
+ /closedir.m4
+ /codeset.m4
+-/configmake.m4
+ /d-ino.m4
+ /dirent-safer.m4
+ /dirent_h.m4
+@@ -28,7 +26,6 @@
+ /getopt.m4
+ /gettime.m4
+ /gettimeofday.m4
+-/glibc21.m4
+ /gnulib-cache.m4
+ /gnulib-common.m4
+ /gnulib-comp.m4
+@@ -42,7 +39,6 @@
+ /locale-fr.m4
+ /locale-ja.m4
+ /locale-zh.m4
+-/longlong.m4
+ /lstat.m4
+ /malloc.m4
+ /malloca.m4
+@@ -60,7 +56,6 @@
+ /multiarch.m4
+ /nocrash.m4
+ /opendir.m4
+-/parse-datetime.m4
+ /pathmax.m4
+ /printf.m4
+ /quote.m4
+@@ -115,10 +110,8 @@
+ alloca.m4
+ argmatch.m4
+ backupfile.m4
+-bison.m4
+ clock_time.m4
+ codeset.m4
+-configmake.m4
+ d-ino.m4
+ dirent-safer.m4
+ dirent_h.m4
+@@ -145,7 +138,6 @@ getdtablesize.m4
+ getopt.m4
+ gettime.m4
+ gettimeofday.m4
+-glibc21.m4
+ gnulib-cache.m4
+ gnulib-common.m4
+ gnulib-comp.m4
+@@ -158,7 +150,6 @@ localcharset.m4
+ locale-fr.m4
+ locale-ja.m4
+ locale-zh.m4
+-longlong.m4
+ lseek.m4
+ lstat.m4
+ malloc.m4
+@@ -173,7 +164,6 @@ mktime.m4
+ mmap-anon.m4
+ multiarch.m4
+ onceonly.m4
+-parse-datetime.m4
+ pathmax.m4
+ printf.m4
+ quote.m4
+@@ -260,10 +250,8 @@ xvasprintf.m4
+ /faccessat.m4
+ /getgroups.m4
+ /group-member.m4
+-/hard-locale.m4
+ /flexmember.m4
+ /getprogname.m4
+-/inttypes-pri.m4
+ /inttypes.m4
+ /limits-h.m4
+ /localtime-buffer.m4
+@@ -288,3 +276,19 @@ xvasprintf.m4
+ /sys_wait_h.m4
+ /wait-process.m4
+ /waitpid.m4
++/__inline.m4
++/dup.m4
++/fcntl-safer.m4
++/fdopendir.m4
++/lchmod.m4
++/locale_h.m4
++/open-slash.m4
++/setlocale_null.m4
++/sh-filename.m4
++/std-gnu11.m4
++/threadlib.m4
++/visibility.m4
++/zzgnulib.m4
++/bison.m4
++/inttypes-pri.m4
++/parse-datetime.m4
+diff --git a/src/patch.c b/src/patch.c
+index 3794319..73d140f 100644
+--- a/src/patch.c
++++ b/src/patch.c
+@@ -645,7 +645,7 @@ main (int argc, char **argv)
+ 		    const char *s = simple_backup_suffix;
+ 		    size_t len;
+ 		    simple_backup_suffix = ".rej";
+-		    rej = find_backup_file_name (outname, simple_backups);
++		    rej = find_backup_file_name (AT_FDCWD, outname, simple_backups);
+ 		    len = strlen (rej);
+ 		    if (rej[len - 1] == '~')
+ 		      rej[len - 1] = '#';
+diff --git a/src/util.c b/src/util.c
+index fb38307..c3ff5dd 100644
+--- a/src/util.c
++++ b/src/util.c
+@@ -29,7 +29,7 @@
+ #include <xalloc.h>
+ #include <xmemdup0.h>
+ 
+-#include <getdate.h>
++#include <parse-datetime.h>
+ #include "ignore-value.h"
+ #include "error.h"
+ 
+@@ -374,7 +374,7 @@ create_backup (char const *to, const struct stat *to_st, bool leave_original)
+ 	}
+       else
+ 	{
+-	  bakname = find_backup_file_name (to, backup_type);
++	  bakname = find_backup_file_name (AT_FDCWD, to, backup_type);
+ 	  if (!bakname)
+ 	    xalloc_die ();
+ 	}
+@@ -1540,7 +1540,7 @@ fetchname (char const *at, int strip_leading, char **pname,
+ 	    }
+ 
+ 	  if (set_time | set_utc)
+-	    get_date (&stamp, t, &initial_time);
++	    parse_datetime (&stamp, t, &initial_time);
+ 	  else
+ 	    {
+ 	      /* The head says the file is nonexistent if the
+@@ -1550,7 +1550,7 @@ fetchname (char const *at, int strip_leading, char **pname,
+ 		 offset < +26:00.  Match any time in that range.  */
+ 	      const struct timespec lower = { -25L * 60 * 60 },
+ 				    upper = {  26L * 60 * 60 };
+-	      if (get_date (&stamp, t, &initial_time)
++	      if (parse_datetime (&stamp, t, &initial_time)
+ 		  && timespec_cmp (stamp, lower) > 0
+ 		  && timespec_cmp (stamp, upper) < 0) {
+ 		      stamp.tv_sec = 0;

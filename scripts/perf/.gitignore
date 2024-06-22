@@ -1,0 +1,9 @@
+*.perf
+*.perf.old
+*.perf.data.old
+*.svg
+*.data
+out.perf-folded
+classification_result*
+python_helper/*.pyc
+python_helper/__pycache__

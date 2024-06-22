@@ -1,0 +1,9 @@
+Year,"CVE","Version",Reproduce?,glibc,BUDAlloc prevent,BUDAlloc detect,ffmalloc,Link
+,"Issue3515",,Y,detect,detect,,,
+2022,"CVE-2022-1934","3.2",Y,"exec normally
+(error generated)",prevent,detect,,
+2022,"CVE-2022-1106","< 3.2",Y,"exec normally
+(error generated)",prevent,detect,,
+,,,,,,,,
+,,,,,,,,
+,,,,,,,,

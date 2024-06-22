@@ -1,0 +1,4 @@
+SPECCPU_2006/
+*.cfg.*
+result
+benchmark_results.csv

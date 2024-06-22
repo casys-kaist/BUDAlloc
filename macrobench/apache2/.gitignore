@@ -1,0 +1,7 @@
+*.txt
+*.log
+httpd*/
+httpd.conf
+*.csv
+wrk/
+install

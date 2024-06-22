@@ -1,0 +1,2 @@
+WEBHOOK="false" #send slack and google sheet if true otherwise not send
+USELOCK="false" #global benchmark lock

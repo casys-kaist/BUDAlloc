@@ -1,0 +1,12 @@
+[submodule "libkernel/lib/elfutils"]
+	path = libkernel/lib/elfutils
+	url = git://sourceware.org/git/elfutils.git
+[submodule "libkernel/libmalloc/mimalloc"]
+	path = libkernel/libmalloc/mimalloc
+	url = https://github.com/microsoft/mimalloc.git
+[submodule "scripts/perf/flamegraph"]
+	path = scripts/perf/flamegraph
+	url = git@github.com:brendangregg/FlameGraph.git
+[submodule "validation/HardsHeap"]
+	path = validation/hardsheap/HardsHeap
+	url = https://github.com/kaist-hacking/HardsHeap.git

@@ -1,0 +1,9 @@
+error.txt
+result.csv
+output_log.csv
+err_log.csv
+segfault_log.csv
+tmp*
+
+**/test_output.txt
+results/

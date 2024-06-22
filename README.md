@@ -160,6 +160,8 @@ After installing the kernel, you can build the BUDAlloc user part.
    cd ..
    ```
 
+3. Note on the memory overhead of DangZero. DangZero cannot account for the memory usage with the default scripts. Unlike other benchmarks, to get a resident set size, you have to add the additional value by uncommenting the TRACK_MEM_USAGE option at gc.h in the DangZero root before installing DangZero.
+
 ### Evaluation workflow
 #### Major Claims
 We evaluated the ***performance***, ***memory overhead***, and ***bug detectability*** of BUDAlloc compared to recent OTAs, FFmalloc, DangZero, and the GC-based MarkUs. In SPEC CPU 2006, BUDAlloc outperformed DangZero by 5% in full detection mode and by 15% in prevention mode, with a memory overhead of 30% compared to FFmalloc's 207%, and better bug detectability. BUDAlloc showed scalable performance improvements in multithreaded PARSEC 3.0, surpassing FFmalloc with more than 8 threads. Real-world tests with Nginx and Apache demonstrated performance and memory overhead comparable to GLIBC, without scalability issues. BUDAlloc detected 27 out of 30 use-after-free vulnerabilities from recent CVEs, and passed all robustness tests with Fuzzer and NIST Juliet, with no issues found in HardsHeap after 24 hours.

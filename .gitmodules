@@ -10,3 +10,6 @@
 [submodule "validation/HardsHeap"]
 	path = validation/hardsheap/HardsHeap
 	url = https://github.com/kaist-hacking/HardsHeap.git
+[submodule "BUDAlloc-Kernel"]
+	path = BUDAlloc-Kernel
+	url = git@github.com:casys-kaist/BUDAlloc_kernel.git

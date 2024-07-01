@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="Modules/arraymodule.c:1403"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD="libkernel.so" ./Python-2.7.10/python ./poc.py"
     ;;
   "ffmalloc")

@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="stream.c:1756"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./lrzip/lrzip -t lrzip-uaf-read_stream.lrz"
     ;;
   "ffmalloc")

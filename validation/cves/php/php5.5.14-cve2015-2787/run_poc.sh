@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="ext/standard/var_unserializer.c:1243"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD="libkernel.so" ./php-5.5.14/sapi/cli/php -f ./poc.php"
     ;;
   "ffmalloc")

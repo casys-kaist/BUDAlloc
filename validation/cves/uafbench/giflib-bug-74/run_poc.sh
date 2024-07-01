@@ -10,7 +10,7 @@ DF_MSG1="double free"
 DF_MSG2="free bad"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./giflib-code/util/gifsponge < ./poc.gif > /dev/null"
     ;;
   "ffmalloc")

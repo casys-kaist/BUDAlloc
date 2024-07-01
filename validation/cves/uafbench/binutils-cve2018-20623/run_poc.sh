@@ -6,10 +6,10 @@ ENDCOLOR="\e[0m"
 
 BENCH_TARGET=$1
 COMM=""
-UAF_POINT="readelf.c:19054"
+UAF_POINT="elfcomm.c:43" # IF SIGSEGV occured at this line, that library detects UAF bug.
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./binutils-gdb/binutils/readelf -a binutils-readelf-heap-use-after-free"
     ;;
   "ffmalloc")

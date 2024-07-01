@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="Zend/zend_gc.c:391"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD="libkernel.so" ./php-7.0.7/sapi/cli/php -f ./poc.php"
     ;;
   "ffmalloc")

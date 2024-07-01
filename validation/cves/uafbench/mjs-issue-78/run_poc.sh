@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="mjs.c:5790"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./mjs/mjs-bin -f ./poc.js"
     ;;
   "ffmalloc")

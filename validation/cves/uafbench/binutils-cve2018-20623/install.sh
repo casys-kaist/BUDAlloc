@@ -13,7 +13,7 @@ mv binutils-gdb-binutils-2_31-branch binutils-gdb
 
 cd binutils-gdb
 
-./configure
+CFLAGS="-O2 -g -Wno-format-overflow" ./configure
 make -j
 
 # FIXME

@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="src/vm.c:2822"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./mruby/bin/mruby ./poc.rb"
     ;;
   "ffmalloc")
@@ -22,9 +22,6 @@ case $BENCH_TARGET in
     ;;
 esac
 
-# FIXME
-# UAF 버그를 잡아내지 못한다.
-# SegFault가 발생하지 않음
 
 sudo gdb -batch -ex r -ex bt --args env ${COMM} > test_output.txt 2>&1
 if grep SIGSEGV ./test_output.txt >/dev/null || grep SIGABRT ./test_output.txt > /dev/null;  then 

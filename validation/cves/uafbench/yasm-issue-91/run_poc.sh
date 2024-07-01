@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="libyasm/intnum.c:415"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./yasm/yasm ./poc"
     ;;
   "ffmalloc")

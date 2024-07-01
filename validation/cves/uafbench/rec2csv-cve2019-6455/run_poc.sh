@@ -11,7 +11,7 @@ DF_MSG1="double free"
 DF_MSG2="free bad"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./recutils/utils/rec2csv ./double-free-poc-1"
     ;;
   "ffmalloc")

@@ -8,7 +8,7 @@ COMM=""
 UAF_POINT="vm.c:1684"
 
 case $BENCH_TARGET in
-  "mbpf")
+  "BUDAlloc")
         COMM="LD_PRELOAD=libkernel.so ./mruby/bin/mruby ./poc.rb"
     ;;
   "ffmalloc")

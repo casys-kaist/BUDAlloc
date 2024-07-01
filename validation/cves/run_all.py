@@ -6,7 +6,7 @@ if __name__ == "__main__":
     cve_root = os.path.dirname(os.path.abspath(__file__))
 
     # define bench target
-    BENCH_TARGETS=["glibc", "mbpf", "ffmalloc"]
+    BENCH_TARGETS=["glibc", "BUDAlloc", "ffmalloc"]
 
     # get list of cve programs
     # ex. mruby, php, python, uafbench, exploit_database

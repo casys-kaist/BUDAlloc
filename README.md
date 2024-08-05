@@ -1,7 +1,9 @@
 # USENIX Security 2024 BUDAlloc: Defeating Use-After-Free Bugs by Decoupling Virtual Address
 Junho Ahn, Jaehyeon Lee, Kanghyuk Lee, Wooseok Gwak, Minseong Hwang, and Youngjin Kwon (School of Computing, KAIST)
 
-The paper is available in [here](https://xxx).
+The paper is available in [here](https://www.usenix.org/conference/usenixsecurity24/presentation/ahn).
+
+* If you encounter any issues while running our benchmarks, please feel free to contact the authors at junhoahn@kaist.ac.kr.
 
 ## Abstraction
 Use-after-free bugs are an important class of vulnerabilities that often pose serious security threats. To prevent or detect use-after-free bugs, one-time allocators have recently gained attention for their better performance scalability and immediate detection of use-after-free bugs compared to garbage collection approaches. This paper introduces BUDAlloc, a one-time-allocator for detecting and protecting use-after-free bugs in unmodified binaries. The core idea is co-designing a user-level allocator and kernel by separating virtual and physical address management. The user-level allocator manages virtual address layout, eliminating the need for system calls when creating virtual aliases, which is essential for reducing internal fragmentation caused by the one-time-allocator. BUDAlloc customizes the kernel page fault handler with eBPF for batching unmap requests when freeing objects. In SPEC CPU 2017, BUDAlloc achieves a 15% performance improvement over DangZero and reduces memory overhead by 61% compared to FFmalloc.
@@ -16,16 +18,14 @@ This artifact evaluation introduces the source code, runtime setup, and instruct
 There are no ethical concerns associated with BUDAlloc. The source code is released under the MIT license.
 
 #### How to Access
-This artifact evaluation can be accessed via the following stable URL: [github.com/BUDAlloc](https://github.com/casys-kaist/BUDAlloc).
+This artifact evaluation can be accessed via the following stable URL: [github](https://github.com/casys-kaist/BUDAlloc/tree/main).
 
 #### Hardware Dependencies
-There are no hardware dependencies on this project.  
-  
 We tested BUDAlloc with Intel(R) Xeon(R) Gold 5220R CPU at 2.2GHz with 24 cores, 172GB DRAM - 2666 MHZ, 512 GB SSD, and 10-Gigabit Network Connection. In all the experiments, we disable hyper-threading, CPU power-saving states, and frequency scaling to reduce the variance. We use Non-Uniform Memory Access (NUMA) in the PARSEC 3.0 benchmarks to fully utilize all 48 cores in the motherboard. We use time to get the resident set size (RSS) and total execution time except DangZero.
 
 #### Software Dependencies
-BUDAlloc requires to install clang-17 to support atomic operations in the bpf program. You can use `scripts/setup.sh` to install the clang-17.   
-We set the default configuration for the other memory allocators for all evaluations. We use a virtual machine with KVM to evaluate test cases on the DangZero, as the default option to execute Kernel-Mode-Linux in the DangZero.
+To support atomic operations in the BPF program, BUDAlloc requires the installation of clang-17. This can be done using the `scripts/setup.sh` script. Our setup utilizes Ubuntu 20.04 with GCC version 9.4.0. If using a newer version of GCC, the `-fcommon` and `-Wno-implicit-function-declaration` compiler options are necessary. We use default configurations for other memory allocators in all evaluations. For testing on DangZero, we use a virtual machine with KVM, as this is the default method for running Kernel-Mode-Linux in DangZero.
+
 ### Set-up
 #### BUDAlloc Installation
 BUDAlloc consists of two distinct components: the kernel and the user space. The BUDAlloc kernel includes the necessary kernel patches for the eBPF helper functions and custom page fault handler. The BUDAlloc user space contains both the user-level components and the eBPF custom page fault handler.

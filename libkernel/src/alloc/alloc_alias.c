@@ -515,7 +515,6 @@ void *ota_malloc(size_t size)
 		thread_init();
 
 	ptr = __ota_malloc(size, false);
-	memset(ptr, 0, size);
 
 	DEBUG_INC_COUNT(mallocCount);
 	rwlock_read_unlock(&mm_get_active()->fork_lock);

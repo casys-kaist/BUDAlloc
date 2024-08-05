@@ -193,9 +193,7 @@ int __attribute__((visibility("default"))) posix_memalign(void **ptr, size_t ali
 	return libc_posix_memalign(ptr, alignment, size);
 #else
 	if (init_kernel_done) {
-		ret = ota_posix_memalign(ptr, alignment, size);
-		memset(*ptr, 0, size);
-		return ret;
+		return ota_posix_memalign(ptr, alignment, size);
 	} else
 		return libc_posix_memalign(ptr, alignment, size);
 #endif
